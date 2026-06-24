@@ -7,9 +7,8 @@ export async function GET(req: NextRequest) {
     const files = await listVaultPath(path)
     return NextResponse.json({ files })
   } catch (err) {
-    return NextResponse.json(
-      { error: String(err) },
-      { status: 500 }
-    )
+    // Return empty files array on error instead of 500
+    console.error('[vault] Error:', err)
+    return NextResponse.json({ files: [] })
   }
 }
