@@ -19,6 +19,30 @@ The fork already contains a Next.js dashboard with:
 
 The existing UI should be reused, linked, or embedded through the private Pi realm rather than rebuilt from scratch.
 
+## Critical pre-connection security blocker
+
+The current `main` branch exposes these Next.js API handlers without an authentication check in the route itself:
+
+- `GET /api/search` — searches the vault/Supabase index and can fall back to reading up to 200 vault notes.
+- `GET /api/vault` — lists a vault path.
+- `GET /api/note` — reads and parses a note by requested path.
+- `GET /api/agent-log` — reads recent agent activity.
+- `POST /api/agent-log` — writes an agent-log record.
+
+This repository must therefore **not be exposed as an Internet-accessible Second Brain service or wired into Command Center as trusted private storage until an owner-authenticated, fail-closed boundary is added and tested**. Network placement alone is not sufficient proof.
+
+Required remediation before connection:
+
+1. Add one server-side authentication helper for the private service; deny when unconfigured.
+2. Apply it to every `/api/*` route that reads or writes private brain state.
+3. Add path validation/canonicalization before accepting a note/vault path so user input cannot escape the approved vault root.
+4. Split read and write authority where practical; Pi initially needs read-only search/status, not arbitrary write access.
+5. Add rate/size limits to query/path inputs and structured error responses.
+6. Add automated checks proving unauthenticated search/vault/note/log requests fail closed.
+7. Verify no Supabase service credentials, vault contents, Drive/OAuth tokens, or private paths reach client bundles or error payloads.
+
+Until those checks pass, the correct integration state is `BLOCKED_SECURITY`, not `connected`.
+
 ## Preserve the Crew
 
 The existing roles remain authoritative inside this service:
@@ -112,21 +136,22 @@ Postman remains the Crew capability for Gmail/Calendar semantics. Connector avai
 ## First verifiable slice
 
 1. document current dashboard/data path baseline
-2. add private authenticated health/status contract
-3. add private read-only search contract that returns provenance
-4. connect Pi to those two operations
-5. expose existing dashboard entry point from Command Center `/pi`
-6. prove unauthorized requests fail closed
+2. close the unauthenticated API blocker and prove all private routes fail closed
+3. add private authenticated health/status contract
+4. add private read-only search contract that returns provenance
+5. connect Pi to those two operations
+6. expose existing dashboard entry point from Command Center `/pi`
 
 Do not add write actions, dedupe mutations, live Gmail/Calendar writes, or public publishing in this first slice.
 
 ## Acceptance proof
 
-- current dashboard remains functional
+- current dashboard remains functional after auth is introduced
+- every private API route fails closed when owner/service auth is absent
+- note/vault path requests cannot escape the approved root
 - status is truthful and does not synthesize counts/health
 - private search returns source/provenance
-- unauthorized requests fail closed
 - no private credentials appear in client bundles/responses
 - existing Crew routing remains intact
 - Graphify data can be removed/rebuilt without losing canonical memory
-- rollback removes the Pi adapter without changing vault contents
+- rollback removes the Pi adapter/auth layer without changing vault contents
