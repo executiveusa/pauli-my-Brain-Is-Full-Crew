@@ -15,6 +15,7 @@ export type Database = {
         }
         Insert: Omit<Database['public']['Tables']['vault_index']['Row'], 'id' | 'indexed_at'>
         Update: Partial<Database['public']['Tables']['vault_index']['Insert']>
+        Relationships: []
       }
       agent_log: {
         Row: {
@@ -27,9 +28,19 @@ export type Database = {
         }
         Insert: Omit<Database['public']['Tables']['agent_log']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['agent_log']['Insert']>
+        Relationships: []
       }
     }
+    Views: { [_ in never]: never }
+    Functions: { [_ in never]: never }
+    Enums: { [_ in never]: never }
+    CompositeTypes: { [_ in never]: never }
   }
+}
+
+type AgentLogReceipt = {
+  id: string
+  created_at: string
 }
 
 let _client: ReturnType<typeof createClient<Database>> | null = null
@@ -53,7 +64,7 @@ export async function writeAgentAction(
   action: string,
   notePath?: string,
   detail?: string
-) {
+): Promise<AgentLogReceipt> {
   const sb = getSupabase()
   const { data, error } = await sb
     .from('agent_log')
