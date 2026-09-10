@@ -11,7 +11,7 @@
     "verify": "npm run verify:private && npm run build"
   },
   "dependencies": {
-    "next": "15.3.3",
+    "next": "15.5.24",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "@supabase/supabase-js": "^2.49.8",
@@ -30,6 +30,7 @@
     "@types/react-dom": "^19",
     "typescript": "^5",
     "tailwindcss": "^4",
+    "@tailwindcss/postcss": "^4.0.0",
     "@tailwindcss/typography": "^0.5.16",
     "postcss": "^8"
   }
