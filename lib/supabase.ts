@@ -15,6 +15,7 @@ export type Database = {
         }
         Insert: Omit<Database['public']['Tables']['vault_index']['Row'], 'id' | 'indexed_at'>
         Update: Partial<Database['public']['Tables']['vault_index']['Insert']>
+        Relationships: []
       }
       agent_log: {
         Row: {
@@ -27,12 +28,26 @@ export type Database = {
         }
         Insert: Omit<Database['public']['Tables']['agent_log']['Row'], 'id' | 'created_at'>
         Update: Partial<Database['public']['Tables']['agent_log']['Insert']>
+        Relationships: []
       }
     }
+    Views: { [_ in never]: never }
+    Functions: { [_ in never]: never }
+    Enums: { [_ in never]: never }
+    CompositeTypes: { [_ in never]: never }
   }
 }
 
+type AgentLogReceipt = {
+  id: string
+  created_at: string
+}
+
 let _client: ReturnType<typeof createClient<Database>> | null = null
+
+export function supabaseConfigured() {
+  return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL?.trim() && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY?.trim())
+}
 
 export function getSupabase() {
   if (!_client) {
@@ -44,6 +59,22 @@ export function getSupabase() {
   return _client
 }
 
+export async function writeAgentAction(
+  agent: string,
+  action: string,
+  notePath?: string,
+  detail?: string
+): Promise<AgentLogReceipt> {
+  const sb = getSupabase()
+  const { data, error } = await sb
+    .from('agent_log')
+    .insert({ agent, action, note_path: notePath ?? null, detail: detail ?? null })
+    .select('id, created_at')
+    .single()
+  if (error || !data) throw error || new Error('Agent log receipt missing')
+  return data
+}
+
 export async function logAgentAction(
   agent: string,
   action: string,
@@ -51,20 +82,20 @@ export async function logAgentAction(
   detail?: string
 ) {
   try {
-    const sb = getSupabase()
-    await sb.from('agent_log').insert({ agent, action, note_path: notePath ?? null, detail: detail ?? null })
+    await writeAgentAction(agent, action, notePath, detail)
   } catch {
-    // non-blocking
+    // Existing internal callers keep non-blocking behavior. API writes use writeAgentAction directly.
   }
 }
 
 export async function searchVaultIndex(query: string, limit = 20) {
   const sb = getSupabase()
-  const { data } = await sb
+  const { data, error } = await sb
     .from('vault_index')
     .select('path, title, body, tags')
     .textSearch('body', query, { type: 'websearch', config: 'english' })
     .limit(limit)
+  if (error) throw error
   return data ?? []
 }
 
@@ -76,7 +107,8 @@ export async function upsertVaultNote(
   frontmatter: Record<string, unknown>
 ) {
   const sb = getSupabase()
-  await sb
+  const { error } = await sb
     .from('vault_index')
     .upsert({ path, title, body, tags, frontmatter }, { onConflict: 'path' })
+  if (error) throw error
 }
